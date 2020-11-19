@@ -29,6 +29,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -41,11 +42,9 @@ import javax.persistence.Parameter;
 import javax.persistence.Query;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Expression;
-import javax.persistence.criteria.Fetch;
 import javax.persistence.criteria.From;
 import javax.persistence.criteria.Join;
 import javax.persistence.criteria.JoinType;
-import javax.persistence.criteria.Path;
 import javax.persistence.metamodel.Attribute;
 import javax.persistence.metamodel.Attribute.PersistentAttributeType;
 import javax.persistence.metamodel.Bindable;
@@ -81,6 +80,7 @@ import org.springframework.util.StringUtils;
  * @author Mohammad Hewedy
  * @author Andriy Redko
  * @author Peter Großmann
+ * @author Patrice Blanchardie
  */
 public abstract class QueryUtils {
 
@@ -105,7 +105,8 @@ public abstract class QueryUtils {
 
 	private static final Pattern ALIAS_MATCH;
 	private static final Pattern COUNT_MATCH;
-	private static final Pattern PROJECTION_CLAUSE = Pattern.compile("select\\s+(?:distinct\\s+)?(.+)\\s+from", Pattern.CASE_INSENSITIVE);
+	private static final Pattern PROJECTION_CLAUSE = Pattern
+			.compile("select\\s+(?:distinct\\s+)?(.+)\\s+from", Pattern.CASE_INSENSITIVE);
 
 	private static final Pattern NO_DIGITS = Pattern.compile("\\D+");
 
@@ -130,9 +131,10 @@ public abstract class QueryUtils {
 	private static final Pattern FUNCTION_PATTERN;
 	private static final Pattern FIELD_ALIAS_PATTERN;
 
-	private static final String UNSAFE_PROPERTY_REFERENCE = "Sort expression '%s' must only contain property references or "
-			+ "aliases used in the select clause. If you really want to use something other than that for sorting, please use "
-			+ "JpaSort.unsafe(…)!";
+	private static final String UNSAFE_PROPERTY_REFERENCE =
+			"Sort expression '%s' must only contain property references or "
+					+ "aliases used in the select clause. If you really want to use something other than that for sorting, please use "
+					+ "JpaSort.unsafe(…)!";
 
 	static {
 
@@ -205,9 +207,9 @@ public abstract class QueryUtils {
 	/**
 	 * Returns the query string to execute an exists query for the given id attributes.
 	 *
-	 * @param entityName the name of the entity to create the query for, must not be {@literal null}.
+	 * @param entityName            the name of the entity to create the query for, must not be {@literal null}.
 	 * @param countQueryPlaceHolder the placeholder for the count clause, must not be {@literal null}.
-	 * @param idAttributes the id attributes for the entity, must not be {@literal null}.
+	 * @param idAttributes          the id attributes for the entity, must not be {@literal null}.
 	 */
 	public static String getExistsQueryString(String entityName, String countQueryPlaceHolder,
 			Iterable<String> idAttributes) {
@@ -222,7 +224,7 @@ public abstract class QueryUtils {
 	/**
 	 * Returns the query string for the given class name.
 	 *
-	 * @param template must not be {@literal null}.
+	 * @param template   must not be {@literal null}.
 	 * @param entityName must not be {@literal null}.
 	 * @return the template with placeholders replaced by the {@literal entityName}. Guaranteed to be not {@literal null}.
 	 */
@@ -237,7 +239,7 @@ public abstract class QueryUtils {
 	 * Adds {@literal order by} clause to the JPQL query. Uses the first alias to bind the sorting property to.
 	 *
 	 * @param query the query string to which sorting is applied
-	 * @param sort the sort specification to apply.
+	 * @param sort  the sort specification to apply.
 	 * @return the modified query string.
 	 */
 	public static String applySorting(String query, Sort sort) {
@@ -248,7 +250,7 @@ public abstract class QueryUtils {
 	 * Adds {@literal order by} clause to the JPQL query.
 	 *
 	 * @param query the query string to which sorting is applied. Must not be {@literal null} or empty.
-	 * @param sort the sort specification to apply.
+	 * @param sort  the sort specification to apply.
 	 * @param alias the alias to be used in the order by clause. May be {@literal null} or empty.
 	 * @return the modified query string.
 	 */
@@ -286,8 +288,8 @@ public abstract class QueryUtils {
 	 * property refers to a join alias, i.e. starts with {@code $alias.}.
 	 *
 	 * @param joinAliases the join aliases of the original query. Must not be {@literal null}.
-	 * @param alias the alias for the root entity. May be {@literal null}.
-	 * @param order the order object to build the clause for. Must not be {@literal null}.
+	 * @param alias       the alias for the root entity. May be {@literal null}.
+	 * @param order       the order object to build the clause for. Must not be {@literal null}.
 	 * @return a String containing a order clause. Guaranteed to be not {@literal null}.
 	 */
 	private static String getOrderClause(Set<String> joinAliases, Set<String> selectionAlias, @Nullable String alias,
@@ -310,8 +312,8 @@ public abstract class QueryUtils {
 			}
 		}
 
-		String reference = qualifyReference && StringUtils.hasText(alias) ? String.format("%s.%s", alias, property)
-				: property;
+		String reference =
+				qualifyReference && StringUtils.hasText(alias) ? String.format("%s.%s", alias, property) : property;
 		String wrapped = order.isIgnoreCase() ? String.format("lower(%s)", reference) : reference;
 
 		return String.format("%s %s", wrapped, toJpaDirection(order));
@@ -393,9 +395,7 @@ public abstract class QueryUtils {
 	 * @return Might return {@literal null}.
 	 * @deprecated use {@link DeclaredQuery#getAlias()} instead.
 	 */
-	@Nullable
-	@Deprecated
-	public static String detectAlias(String query) {
+	@Nullable @Deprecated public static String detectAlias(String query) {
 
 		Matcher matcher = ALIAS_MATCH.matcher(query);
 
@@ -406,9 +406,9 @@ public abstract class QueryUtils {
 	 * Creates a where-clause referencing the given entities and appends it to the given query string. Binds the given
 	 * entities to the query.
 	 *
-	 * @param <T> type of the entities.
-	 * @param queryString must not be {@literal null}.
-	 * @param entities must not be {@literal null}.
+	 * @param <T>           type of the entities.
+	 * @param queryString   must not be {@literal null}.
+	 * @param entities      must not be {@literal null}.
 	 * @param entityManager must not be {@literal null}.
 	 * @return Guaranteed to be not {@literal null}.
 	 */
@@ -461,22 +461,20 @@ public abstract class QueryUtils {
 	 * @return Guaranteed to be not {@literal null}.
 	 * @deprecated use {@link DeclaredQuery#deriveCountQuery(String, String)} instead.
 	 */
-	@Deprecated
-	public static String createCountQueryFor(String originalQuery) {
+	@Deprecated public static String createCountQueryFor(String originalQuery) {
 		return createCountQueryFor(originalQuery, null);
 	}
 
 	/**
 	 * Creates a count projected query from the given original query.
 	 *
-	 * @param originalQuery must not be {@literal null}.
+	 * @param originalQuery   must not be {@literal null}.
 	 * @param countProjection may be {@literal null}.
 	 * @return a query String to be used a count query for pagination. Guaranteed to be not {@literal null}.
 	 * @since 1.6
 	 * @deprecated use {@link DeclaredQuery#deriveCountQuery(String, String)} instead.
 	 */
-	@Deprecated
-	public static String createCountQueryFor(String originalQuery, @Nullable String countProjection) {
+	@Deprecated public static String createCountQueryFor(String originalQuery, @Nullable String countProjection) {
 
 		Assert.hasText(originalQuery, "OriginalQuery must not be null or empty!");
 
@@ -491,9 +489,9 @@ public abstract class QueryUtils {
 					&& !variable.startsWith("count(") //
 					&& !variable.contains(","); //
 
-			String complexCountValue = matcher.matches() &&
-					StringUtils.hasText(matcher.group(COMPLEX_COUNT_FIRST_INDEX)) ?
-					COMPLEX_COUNT_VALUE : COMPLEX_COUNT_LAST_VALUE;
+			String complexCountValue = matcher.matches() && StringUtils.hasText(matcher.group(COMPLEX_COUNT_FIRST_INDEX)) ?
+					COMPLEX_COUNT_VALUE :
+					COMPLEX_COUNT_LAST_VALUE;
 
 			String replacement = useVariable ? SIMPLE_COUNT_VALUE : complexCountValue;
 			countQuery = matcher.replaceFirst(String.format(COUNT_REPLACEMENT_TEMPLATE, replacement));
@@ -533,8 +531,7 @@ public abstract class QueryUtils {
 	 * @param query can be {@literal null} or empty.
 	 * @return whether the given query contains named parameters.
 	 */
-	@Deprecated
-	static boolean hasNamedParameter(@Nullable String query) {
+	@Deprecated static boolean hasNamedParameter(@Nullable String query) {
 		return StringUtils.hasText(query) && NAMED_PARAMETER.matcher(query).find();
 	}
 
@@ -543,7 +540,7 @@ public abstract class QueryUtils {
 	 *
 	 * @param sort the {@link Sort} instance to be transformed into JPA {@link javax.persistence.criteria.Order}s.
 	 * @param from must not be {@literal null}.
-	 * @param cb must not be {@literal null}.
+	 * @param cb   must not be {@literal null}.
 	 * @return a {@link List} of {@link javax.persistence.criteria.Order}s.
 	 */
 	public static List<javax.persistence.criteria.Order> toOrders(Sort sort, From<?, ?> from, CriteriaBuilder cb) {
@@ -598,15 +595,15 @@ public abstract class QueryUtils {
 	 * Creates a criteria API {@link javax.persistence.criteria.Order} from the given {@link Order}.
 	 *
 	 * @param order the order to transform into a JPA {@link javax.persistence.criteria.Order}
-	 * @param from the {@link From} the {@link Order} expression is based on
-	 * @param cb the {@link CriteriaBuilder} to build the {@link javax.persistence.criteria.Order} with
+	 * @param from  the {@link From} the {@link Order} expression is based on
+	 * @param cb    the {@link CriteriaBuilder} to build the {@link javax.persistence.criteria.Order} with
 	 * @return Guaranteed to be not {@literal null}.
 	 */
-	@SuppressWarnings("unchecked")
-	private static javax.persistence.criteria.Order toJpaOrder(Order order, From<?, ?> from, CriteriaBuilder cb) {
+	@SuppressWarnings("unchecked") private static javax.persistence.criteria.Order toJpaOrder(Order order,
+			From<?, ?> from, CriteriaBuilder cb) {
 
 		PropertyPath property = PropertyPath.from(order.getProperty(), from.getJavaType());
-		Expression<?> expression = toExpressionRecursively(from, property);
+		Expression<?> expression = toExpressionRecursively(from, property, true);
 
 		if (order.isIgnoreCase() && String.class.equals(expression.getJavaType())) {
 			Expression<String> lower = cb.lower((Expression<String>) expression);
@@ -620,12 +617,74 @@ public abstract class QueryUtils {
 		return toExpressionRecursively(from, property, false);
 	}
 
-	@SuppressWarnings("unchecked")
 	static <T> Expression<T> toExpressionRecursively(From<?, ?> from, PropertyPath property, boolean isForSelection) {
+		return toExpressionRecursively(from, property, isForSelection, false);
+	}
+
+	/**
+	 * Creates an expression with proper inner and left joins by recursively navigating the path
+	 *
+	 * @param from                 the {@link From}
+	 * @param property             the property path
+	 * @param isForSelection       is the property navigated for the selection or ordering part of the query?
+	 * @param hasRequiredOuterJoin has a parent already required an outer join?
+	 * @param <T>                  the type of the expression
+	 * @return the expression
+	 */
+	@SuppressWarnings("unchecked") static <T> Expression<T> toExpressionRecursively(From<?, ?> from,
+			PropertyPath property, boolean isForSelection, boolean hasRequiredOuterJoin) {
+
+		String segment = property.getSegment();
+
+		boolean isLeafProperty = !property.hasNext();
+
+		boolean requiresOuterJoin = requiresOuterJoin(from, property, isForSelection, hasRequiredOuterJoin);
+
+		// if it does not require an outer join and is a leaf, simply get the segment
+		if (!requiresOuterJoin && isLeafProperty) {
+			return from.get(segment);
+		}
+
+		// get or create the join
+		JoinType joinType = requiresOuterJoin ? JoinType.LEFT : JoinType.INNER;
+		Join<?, ?> join = getOrCreateJoin(from, segment, joinType);
+
+		// if it's a leaf, return the join
+		if (isLeafProperty) {
+			return (Expression<T>) join;
+		}
+
+		PropertyPath nextProperty = Objects.requireNonNull(property.next(), "An element of the property path is null!");
+
+		// recurse with the next property
+		return toExpressionRecursively(join, nextProperty, isForSelection, requiresOuterJoin);
+	}
+
+	/**
+	 * Checks if this attribute requires an outer join.
+	 * This is the case eg. if it hadn't already been fetched with an inner join and if it's an a optional association,
+	 * and if previous paths has already required outer joins.
+	 * It also ensures outer joins are used even when Hibernate defaults to inner joins (HHH-12712 and HHH-12999).
+	 *
+	 * @param from                 the {@link From} to check for fetches.
+	 * @param property             the property path
+	 * @param isForSelection       is the property navigated for the selection or ordering part of the query? if true,
+	 *                             we need to generate an explicit outer join in order to prevent Hibernate to use an
+	 *                             inner join instead. see https://hibernate.atlassian.net/browse/HHH-12999
+	 * @param hasRequiredOuterJoin has a parent already required an outer join?
+	 * @return whether an outer join is to be used for integrating this attribute in a query.
+	 */
+	private static boolean requiresOuterJoin(From<?, ?> from, PropertyPath property, boolean isForSelection,
+			boolean hasRequiredOuterJoin) {
+
+		String segment = property.getSegment();
+
+		// already inner joined so outer join is useless
+		if (isAlreadyInnerJoined(from, segment))
+			return false;
 
 		Bindable<?> propertyPathModel;
 		Bindable<?> model = from.getModel();
-		String segment = property.getSegment();
 
 		if (model instanceof ManagedType) {
 
@@ -638,29 +697,10 @@ public abstract class QueryUtils {
 			propertyPathModel = from.get(segment).getModel();
 		}
 
-		if (requiresOuterJoin(propertyPathModel, model instanceof PluralAttribute, !property.hasNext(), isForSelection)
-				&& !isAlreadyFetched(from, segment)) {
-			Join<?, ?> join = getOrCreateJoin(from, segment);
-			return (Expression<T>) (property.hasNext() ? toExpressionRecursively(join, property.next(), isForSelection)
-					: join);
-		} else {
-			Path<Object> path = from.get(segment);
-			return (Expression<T>) (property.hasNext() ? toExpressionRecursively(path, property.next()) : path);
-		}
-	}
+		// is the attribute of Collection type?
+		boolean isPluralAttribute = model instanceof PluralAttribute;
 
-	/**
-	 * Returns whether the given {@code propertyPathModel} requires the creation of a join. This is the case if we find a
-	 * optional association.
-	 *
-	 * @param propertyPathModel may be {@literal null}.
-	 * @param isPluralAttribute is the attribute of Collection type?
-	 * @param isLeafProperty is this the final property navigated by a {@link PropertyPath}?
-	 * @param isForSelection is the property navigated for the selection part of the query?
-	 * @return whether an outer join is to be used for integrating this attribute in a query.
-	 */
-	private static boolean requiresOuterJoin(@Nullable Bindable<?> propertyPathModel, boolean isPluralAttribute,
-			boolean isLeafProperty, boolean isForSelection) {
+		boolean isLeafProperty = !property.hasNext();
 
 		if (propertyPathModel == null && isPluralAttribute) {
 			return true;
@@ -672,24 +712,23 @@ public abstract class QueryUtils {
 
 		Attribute<?, ?> attribute = (Attribute<?, ?>) propertyPathModel;
 
+		// not a persistent attribute type association (@OneToOne, @ManyToOne)
 		if (!ASSOCIATION_TYPES.containsKey(attribute.getPersistentAttributeType())) {
 			return false;
 		}
 
-		// if this path is an optional one to one attribute navigated from the not owning side we also need an explicit
-		// outer join to avoid https://hibernate.atlassian.net/browse/HHH-12712 and
-		// https://github.com/eclipse-ee4j/jpa-api/issues/170
+		boolean isCollection = attribute.isCollection();
+		// if this path is an optional one to one attribute navigated from the not owning side we also need an
+		// explicit outer join to avoid https://hibernate.atlassian.net/browse/HHH-12712
+		// and https://github.com/eclipse-ee4j/jpa-api/issues/170
 		boolean isInverseOptionalOneToOne = PersistentAttributeType.ONE_TO_ONE == attribute.getPersistentAttributeType()
 				&& StringUtils.hasText(getAnnotationProperty(attribute, "mappedBy", ""));
 
-		// if this path is part of the select list we need to generate an explicit outer join in order to prevent Hibernate
-		// to use an inner join instead.
-		// see https://hibernate.atlassian.net/browse/HHH-12999.
-		if (isLeafProperty && !isForSelection && !attribute.isCollection() && !isInverseOptionalOneToOne) {
+		if (isLeafProperty && !isForSelection && !isCollection && !isInverseOptionalOneToOne && !hasRequiredOuterJoin) {
 			return false;
 		}
 
-		return getAnnotationProperty(attribute, "optional", true);
+		return hasRequiredOuterJoin || getAnnotationProperty(attribute, "optional", true);
 	}
 
 	private static <T> T getAnnotationProperty(Attribute<?, ?> attribute, String propertyName, T defaultValue) {
@@ -710,52 +749,44 @@ public abstract class QueryUtils {
 		return annotation == null ? defaultValue : (T) AnnotationUtils.getValue(annotation, propertyName);
 	}
 
-	static Expression<Object> toExpressionRecursively(Path<Object> path, PropertyPath property) {
-
-		Path<Object> result = path.get(property.getSegment());
-		return property.hasNext() ? toExpressionRecursively(result, property.next()) : result;
-	}
-
 	/**
-	 * Returns an existing join for the given attribute if one already exists or creates a new one if not.
+	 * Returns an existing join for the given attribute and join type if one already exists or creates a new one if not.
 	 *
-	 * @param from the {@link From} to get the current joins from.
+	 * @param from      the {@link From} to get the current joins from.
 	 * @param attribute the {@link Attribute} to look for in the current joins.
+	 * @param joinType  the join type
 	 * @return will never be {@literal null}.
 	 */
-	private static Join<?, ?> getOrCreateJoin(From<?, ?> from, String attribute) {
+	private static Join<?, ?> getOrCreateJoin(From<?, ?> from, String attribute, JoinType joinType) {
 
 		for (Join<?, ?> join : from.getJoins()) {
 
 			boolean sameName = join.getAttribute().getName().equals(attribute);
 
-			if (sameName && join.getJoinType().equals(JoinType.LEFT)) {
+			if (sameName && join.getJoinType().equals(joinType)) {
 				return join;
 			}
 		}
 
-		return from.join(attribute, JoinType.LEFT);
+		return from.join(attribute, joinType);
 	}
 
 	/**
-	 * Return whether the given {@link From} contains a fetch declaration for the attribute with the given name.
+	 * Return whether the given {@link From} contains an inner join for the attribute with the given name.
 	 *
-	 * @param from the {@link From} to check for fetches.
+	 * @param from      the {@link From} to check for joins.
 	 * @param attribute the attribute name to check.
-	 * @return
+	 * @return true if the attribute has already been inner joined
 	 */
-	private static boolean isAlreadyFetched(From<?, ?> from, String attribute) {
+	private static boolean isAlreadyInnerJoined(From<?, ?> from, String attribute) {
 
-		for (Fetch<?, ?> fetch : from.getFetches()) {
+		boolean isInnerJoinFetched = from.getFetches().stream().anyMatch(
+				fetch -> fetch.getAttribute().getName().equals(attribute) && fetch.getJoinType().equals(JoinType.INNER));
 
-			boolean sameName = fetch.getAttribute().getName().equals(attribute);
+		boolean isSimplyInnerJoined = from.getJoins().stream()
+				.anyMatch(join -> join.getAttribute().getName().equals(attribute) && join.getJoinType().equals(JoinType.INNER));
 
-			if (sameName && fetch.getJoinType().equals(JoinType.LEFT)) {
-				return true;
-			}
-		}
-
-		return false;
+		return isInnerJoinFetched || isSimplyInnerJoined;
 	}
 
 	/**
